@@ -8,6 +8,7 @@ let ShadePollIntervalMs = 30000;
 let Shade = {
 	ROLLER: 1,
 	TOP_BOTTOM: 2,
+	DUOLITE: 2,
 	HORIZONTAL: 3,
 	VERTICAL: 4
 }
@@ -15,6 +16,7 @@ let Shade = {
 let ShadeTypes = {
 	ROLLER: [1, 5, 42],
 	TOP_BOTTOM: [8],
+	DUOLITE: [65],
 	HORIZONTAL: [18, 23],
 	VERTICAL: [16]
 }
@@ -62,6 +64,7 @@ function PowerViewPlatform(log, config, api) {
 		this.forceTopBottomShades = config["forceTopBottomShades"] || [];
 		this.forceHorizontalShades = config["forceHorizontalShades"] || [];
 		this.forceVerticalShades = config["forceVerticalShades"] || [];
+		this.forceDuoliteShades = config["forceDuoliteShades"] || [];
 
 		this.api.on('didFinishLaunching', function () {
 			this.updateHubInfo();
@@ -84,6 +87,8 @@ PowerViewPlatform.prototype.shadeType = function (shade) {
 		return Shade.HORIZONTAL;
 	if (this.forceVerticalShades.includes(shade.id))
 		return Shade.VERTICAL;
+	if (this.forceDuoliteShades.includes(shade.id))
+		return Shade.DUOLITE;
 
 	if (ShadeTypes.ROLLER.includes(shade.type))
 		return Shade.ROLLER;
@@ -93,6 +98,8 @@ PowerViewPlatform.prototype.shadeType = function (shade) {
 		return Shade.HORIZONTAL;
 	if (ShadeTypes.VERTICAL.includes(shade.type))
 		return Shade.VERTICAL;
+	if (ShadeTypes.DUOLITE.includes(shade.type))
+		return Shade.DUOLITE;
 
 	this.log("*** Shade %d has unknown type %d, assuming roller ***", shade.id, shade.type);
 	return Shade.ROLLER
@@ -109,7 +116,7 @@ PowerViewPlatform.prototype.configureAccessory = function (accessory) {
 		// Port over a pre-typing shade.
 		var service = accessory.getServiceByUUIDAndSubType(Service.WindowCovering, SubType.TOP);
 		if (service) {
-			accessory.context.shadeType = Shade.TOP_BOTTOM;
+			accessory.context.shadeType = Shade.DUOLITE;
 		} else {
 			accessory.context.shadeType = Shade.ROLLER;
 		}
@@ -231,7 +238,7 @@ PowerViewPlatform.prototype.configureShadeAccessory = function (accessory) {
 	}
 
 	service = accessory.getServiceByUUIDAndSubType(Service.WindowCovering, SubType.TOP);
-	if (accessory.context.shadeType == Shade.TOP_BOTTOM) {
+	if (accessory.context.shadeType == Shade.DUOLITE) {
 		if (!service)
 			service = accessory.addService(Service.WindowCovering, accessory.displayName, SubType.TOP);
 
@@ -362,6 +369,17 @@ PowerViewPlatform.prototype.updateShadeValues = function (shade, current) {
 			}
 
 			if (position == Position.TOP && accessory.context.shadeType == Shade.TOP_BOTTOM) {
+				positions[Position.TOP] = Math.round(100 * hubValue / 65535);
+
+				var service = accessory.getServiceByUUIDAndSubType(Service.WindowCovering, SubType.TOP);
+
+				if (current)
+					service.setCharacteristic(Characteristic.CurrentPosition, positions[Position.TOP]);
+				service.updateCharacteristic(Characteristic.TargetPosition, positions[Position.TOP]);
+				service.setCharacteristic(Characteristic.PositionState, Characteristic.PositionState.STOPPED);
+			}
+
+			if (position == Position.TOP && accessory.context.shadeType == Shade.DUOLITE) {
 				positions[Position.TOP] = Math.round(100 * hubValue / 65535);
 
 				var service = accessory.getServiceByUUIDAndSubType(Service.WindowCovering, SubType.TOP);
